@@ -33,6 +33,7 @@ class ImagePermutation:
             return output.getvalue()
 
     def generate_permutations(self, image_path, mode):
+        # TODO: implement mode check that only executes the base permutations if basic, else all if Advanced
         """
         Generates dictionary of the transformed images
         
@@ -50,17 +51,49 @@ class ImagePermutation:
             )
             return rotated_image_dict
 
+        def zoomed_image(base_img, zoom_amount: float):
+            zoomed_image_dict = {}
+            w, h = base_img.size
+            crop_w, crop_h = int(w * (1-zoom_amount)), int(h * (1 - zoom_amount))
+            left = (w - crop_w) // 2
+            upper = (h - crop_h) // 2
+            zoomed = base_img.crop((left, upper, left + crop_w, upper + crop_h))
+            zoomed_image_dict[f'zoomed_{zoom_amount * 100}_percent'] = zoomed.resize(self.resize, Image.LANCZOS)
+            return zoomed_image_dict
+        
+        def brightness_adj_image(base_img):
+            returndict = {}
+            # Brightness adjustments
+            for factor in [0.9, 1.1]:
+                enhancer = ImageEnhance.Brightness(base_img)
+                returndict[f"brightness_{factor}x"] = enhancer.enhance(factor)
+            return returndict
+
+        def contrast_adj_image(base_img):
+            returndict = {}
+            # Contrast adjustments
+            for factor in [0.9, 1.1]:
+                enhancer = ImageEnhance.Contrast(base_img)
+                returndict[f"contrast_{factor}x"] = enhancer.enhance(factor)
+            return returndict
+
 
         mode = self.mode
         permutations = {}
         base_img = Image.open(image_path).resize(self.resize).convert("L")
+        
+        # Base perms
         h_flip = base_img.transpose(Image.FLIP_LEFT_RIGHT)
         v_flip = base_img.transpose(Image.FLIP_TOP_BOTTOM)
         permutations['original'] = base_img
         permutations['H_Flip'] = h_flip
         permutations['v_Flip'] = v_flip
+
+        # Advanced perms
         rotations = rotated_image(base_img)
         permutations.update(rotations)
+        zoomed = zoomed_image(base_img, zoom_amount=0.05)
+        permutations.update(zoomed)
 
       
         
