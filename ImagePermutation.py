@@ -77,6 +77,15 @@ class ImagePermutation:
                 returndict[f"contrast_{factor}x"] = enhancer.enhance(factor)
             return returndict
 
+        def simulate_compression(base_img):
+            return_dict = {}
+            with io.BytesIO() as temp_buffer:
+                base_img.save(temp_buffer, format="JPEG", quality=85)
+                temp_buffer.seek(0)
+                jpeg_img = Image.open(temp_buffer)
+                # Ensure consistent format & size
+                return_dict["jpeg_compression"] = jpeg_img.convert("L").resize(self.resize)
+
 
         mode = self.mode
         permutations = {}
@@ -94,8 +103,50 @@ class ImagePermutation:
         permutations.update(rotations)
         zoomed = zoomed_image(base_img, zoom_amount=0.05)
         permutations.update(zoomed)
+        compressed = simulate_compression(base_img)
+        permutations.update(compressed)
 
-      
+        return permuations
+
+    def generate_hashes_and_bytes(self, image_path):
+        """
+        Generates the hash-keys and bytes for a given image, requires calling of generate_permutations to generate image variations
+
+        Args:
+            image_path: path to the image, to be passed into generate_permutations to generate variations.
+        """
+        # Define 'result' dictionary to store the image and image path alongside its hashes & bytes
+        result = {}
+        filename = os.path.basename(image_path)
+        result["filename"] = filename
+        result["filepath"] = image_path
+
+        permutations = self.generate_permutations(image_path)
+        for key, img in permutations.items():
+            # Compute average hash (convert the result to string)
+            img_hash = str(imagehash.average_hash(img))
+            result[f"{key}_hash"] = img_hash
+            # Convert image to bytes (PNG format)
+            result[f"{key}_bytes"] = self.image_to_bytes(img)
+
+        return result
+
+    def process_image_directory(self, folder_path):
+        """
+        Process all images in a folder, generating a dictionary for each.
+        Only files with extensions in image_extensions are processed.
+
+        Returns:
+            list of dictionaries of hashes and bytes of each image in directory.
+        """
+        image_extensions = ('.png', '.jpg', '.jpeg', '.bmp', '.gif')
+        results = []
+        for file in os.listdir(folder_path):
+            if file.lower().endswith(image_extensions):
+                image_path = os.path.join(folder_path, file)
+                data = self.generate_hashes_and_bytes(image_path)
+                results.append(data)
+        return results  
         
 
 
