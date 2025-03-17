@@ -4,6 +4,7 @@ import imagehash
 import numpy as np
 import pandas as pd
 from typing import List, Tuple, Literal
+from PIL import Image, ImageEnhance, ImageFilter
 
 class ImagePermutation:
     """
@@ -45,7 +46,7 @@ class ImagePermutation:
             image.save(output, format='PNG')
             return output.getvalue()
 
-    def generate_permutations(self, image_path, mode):
+    def generate_permutations(self, image_path):
         # TODO: implement mode check that only executes the base permutations if basic, else all if Advanced
         """
         Generates dictionary of the transformed images
@@ -120,7 +121,7 @@ class ImagePermutation:
             compressed = simulate_compression(base_img)
             permutations.update(compressed)
 
-        return permuations
+        return permutations
 
     def generate_hashes_and_bytes(self, image_path):
         """
@@ -216,7 +217,8 @@ class ImageScanner():
         self.matching_images = matching_images
         self.matching_images_dict = matching_images_dict
 
-    def print_matches(self, match_list = self.matching_images):
+    def print_matches(self, match_list):
+        match_list = self.matching_images
         if len(match_list) > 0:
             for match in match_list:
                 filename, transformations = match
