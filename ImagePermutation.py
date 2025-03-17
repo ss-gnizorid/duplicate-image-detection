@@ -25,7 +25,20 @@ class ImagePermutation:
                 Defaults to 'basic'. Advanced mode generates more permutations that are less common.
         """
         self.resize = resize
-        self.mode = mode
+        self._mode = None  # Initialize internal mode storage
+        self.mode = mode  # Use the setter for validation.
+
+    @property
+    def mode(self) -> str:
+        """Getter for mode."""
+        return self._mode
+
+    @mode.setter
+    def mode(self, value: str):
+        """Setter for mode validation."""
+        if value not in ('basic', 'advanced'):
+            raise ValueError(f'Invalid mode [{value}]. Expected basic or advanced')
+        self._mode = value
 
     def image_to_bytes(self, image):
         with io.BytesIO() as output:
@@ -99,12 +112,13 @@ class ImagePermutation:
         permutations['v_Flip'] = v_flip
 
         # Advanced perms
-        rotations = rotated_image(base_img)
-        permutations.update(rotations)
-        zoomed = zoomed_image(base_img, zoom_amount=0.05)
-        permutations.update(zoomed)
-        compressed = simulate_compression(base_img)
-        permutations.update(compressed)
+        if mode == 'advanced':
+            rotations = rotated_image(base_img)
+            permutations.update(rotations)
+            zoomed = zoomed_image(base_img, zoom_amount=0.05)
+            permutations.update(zoomed)
+            compressed = simulate_compression(base_img)
+            permutations.update(compressed)
 
         return permuations
 
@@ -149,5 +163,65 @@ class ImagePermutation:
         return results  
         
 
+class ImageScanner():
+    """
+    ImageScanner compares dataframe of hashes & bytes to existing database of hashes and bytes, returning
+    matching values via various functions.
+    """
 
-ip = ImagePermutation()
+    def __init__(self, _database):
+        self.database = _database
+        self.matching_images = []
+        self.matching_images_dict = {}
+
+
+
+    def compare_hashes_fuzzy_crosswise(self, test_hashes, df, threshold = 5):
+        df = self.database
+        matching_images = []
+        matching_images_dict = {'file': [], 'match_type': [], 'match_level': []}
+        test_filename = test_hashes.get("filename", "Test Image")
+
+        # For each row (stored image) in the DataFrame
+        for idx, row in df.iterrows():
+            existing_filename = row["filename"]
+            row_matches = []
+
+            # Compare every hash in test_hashes to every hash in row
+            for test_key, test_val in test_hashes.items():
+                if test_key.endswith("_hash"):
+                    test_hash = imagehash.hex_to_hash(test_val)
+
+                    # Loop over every stored hash in the current row
+                    for store_key, store_val in row.items():
+                        if store_key.endswith("_hash"):
+                            stored_hash = imagehash.hex_to_hash(store_val)
+                            distance = test_hash - stored_hash  # Hamming distance
+                            if distance == 0:
+                                row_matches.append(f"{test_key} vs {store_key} (Exact)")
+                                matching_images_dict['file'].append(existing_filename)
+                                matching_images_dict['match_type'].append(f"{test_key} vs {store_key}")
+                                matching_images_dict['match_level'].append('Exact')
+                            elif distance <= threshold:
+                                row_matches.append(
+                                    f"{test_key} vs {store_key} (Fuzzy, Distance={distance})"
+                                )
+                                matching_images_dict['file'].append(existing_filename)
+                                matching_images_dict['match_type'].append(f"{test_key} vs {store_key}")
+                                matching_images_dict['match_level'].append('Fuzzy, Distance={distance}')
+
+            if row_matches:
+                matching_images.append((existing_filename, row_matches))
+
+        self.matching_images = matching_images
+        self.matching_images_dict = matching_images_dict
+
+    def print_matches(self, match_list = self.matching_images):
+        if len(match_list) > 0:
+            for match in match_list:
+                filename, transformations = match
+                print(f"Match found with '{filename}': {', '.join(transformations)}")
+                print("--------------------")
+        else:
+            print("Brand new image")
+
