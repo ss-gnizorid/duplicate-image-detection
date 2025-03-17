@@ -1,4 +1,4 @@
-from ImagePermutation import ImagePermutation, ImageScanner
+from ImagePermutation.ImagePermutation import ImagePermutation, ImageScanner
 import pandas as pd
 
 def main():
