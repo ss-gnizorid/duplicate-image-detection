@@ -236,6 +236,7 @@ class ImageScanner():
         if len(match_list) > 0:
             for match in match_list:
                 filename, transformations = match
+                print("--------------------")
                 print(f"Match found with '{filename}': {', '.join(transformations)}")
                 print("--------------------")
         else:

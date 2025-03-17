@@ -9,6 +9,7 @@ def main():
     test_hashes = ip.generate_hashes_and_bytes('test-perms/cat-flip.jpg')
     isc.compare_hashes_fuzzy_crosswise(test_hashes, image_db)
     isc.print_matches(isc.matching_images)
+    print(pd.DataFrame.from_dict(isc.matching_images_dict))
 
 if __name__ == "__main__":
     main()
