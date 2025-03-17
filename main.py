@@ -6,7 +6,7 @@ def main():
     image_db = ip.process_image_directory('test-images/')
     image_db_df = pd.DataFrame(image_db)
     isc = ImageScanner(_database=image_db_df)
-    test_hashes = ip.generate_hashes_and_bytes('test-images/cat.jpg')
+    test_hashes = ip.generate_hashes_and_bytes('test-perms/cat-flip.jpg')
     isc.compare_hashes_fuzzy_crosswise(test_hashes, image_db)
     isc.print_matches(isc.matching_images)
 

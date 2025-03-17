@@ -41,13 +41,12 @@ class ImagePermutation:
             raise ValueError(f'Invalid mode [{value}]. Expected basic or advanced')
         self._mode = value
 
-    def image_to_bytes(self, image):
+    def image_to_bytes(self, image) -> str:
         with io.BytesIO() as output:
             image.save(output, format='PNG')
             return output.getvalue()
 
-    def generate_permutations(self, image_path):
-        # TODO: implement mode check that only executes the base permutations if basic, else all if Advanced
+    def generate_permutations(self, image_path) -> dict:
         """
         Generates dictionary of the transformed images
         
@@ -123,12 +122,15 @@ class ImagePermutation:
 
         return permutations
 
-    def generate_hashes_and_bytes(self, image_path):
+    def generate_hashes_and_bytes(self, image_path) -> dict:
         """
         Generates the hash-keys and bytes for a given image, requires calling of generate_permutations to generate image variations
 
         Args:
             image_path: path to the image, to be passed into generate_permutations to generate variations.
+
+        Returns:
+            result: dictionary of image, image_path, hashes and bytes.
         """
         # Define 'result' dictionary to store the image and image path alongside its hashes & bytes
         result = {}
@@ -146,7 +148,7 @@ class ImagePermutation:
 
         return result
 
-    def process_image_directory(self, folder_path):
+    def process_image_directory(self, folder_path) -> list:
         """
         Process all images in a folder, generating a dictionary for each.
         Only files with extensions in image_extensions are processed.
@@ -178,6 +180,18 @@ class ImageScanner():
 
 
     def compare_hashes_fuzzy_crosswise(self, test_hashes, df, threshold = 5):
+        """
+        Compares each hash from the test_hashes dictionary to the stored image database df.
+
+        Args:
+            test_hashes -> dict.
+            df -> pd.DataFrame.
+            threshold -> int, distance threshold between hashes to flag a fuzzy match.
+
+        Returns:
+            matching_images -> list of matches, stores in self.matching_images
+            matching_images_dict -> dict of matches to turn into df, stores in self.matching_images_dict
+        """
         df = self.database
         matching_images = []
         matching_images_dict = {'file': [], 'match_type': [], 'match_level': []}
