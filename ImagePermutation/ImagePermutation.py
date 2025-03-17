@@ -16,7 +16,7 @@ class ImagePermutation:
         mode (Literal['basic', 'advanced']): The processing mode. Defaults to 'basic'.
     """
 
-    def __init__(self, resize: Tuple[int] = (256,256), mode: Literal['basic', 'advanced'] = 'basic'):
+    def __init__(self, resize: Tuple[int, int] = (256,256), mode: Literal['basic', 'advanced'] = 'basic'):
         """
         Initializes an ImagePermutation instance.
 
@@ -41,7 +41,7 @@ class ImagePermutation:
             raise ValueError(f'Invalid mode [{value}]. Expected basic or advanced')
         self._mode = value
 
-    def image_to_bytes(self, image) -> str:
+    def image_to_bytes(self, image) -> bytes:
         with io.BytesIO() as output:
             image.save(output, format='PNG')
             return output.getvalue()
@@ -119,6 +119,10 @@ class ImagePermutation:
             permutations.update(zoomed)
             compressed = simulate_compression(base_img)
             permutations.update(compressed)
+            brightened = brightness_adj_image(base_img)
+            permutations.update(brightened)
+            contrast_adj = contrast_adj_image(base_img)
+            permutations.update(contrast_adj)
 
         return permutations
 
@@ -179,7 +183,7 @@ class ImageScanner():
 
 
 
-    def compare_hashes_fuzzy_crosswise(self, test_hashes, df, threshold = 5):
+    def compare_hashes_fuzzy_crosswise(self, test_hashes, threshold = 5):
         """
         Compares each hash from the test_hashes dictionary to the stored image database df.
 
@@ -223,7 +227,7 @@ class ImageScanner():
                                 )
                                 matching_images_dict['file'].append(existing_filename)
                                 matching_images_dict['match_type'].append(f"{test_key} vs {store_key}")
-                                matching_images_dict['match_level'].append('Fuzzy, Distance={distance}')
+                                matching_images_dict['match_level'].append(f'Fuzzy, Distance={distance}')
 
             if row_matches:
                 matching_images.append((existing_filename, row_matches))
@@ -231,7 +235,7 @@ class ImageScanner():
         self.matching_images = matching_images
         self.matching_images_dict = matching_images_dict
 
-    def print_matches(self, match_list):
+    def print_matches(self):
         match_list = self.matching_images
         if len(match_list) > 0:
             for match in match_list:
