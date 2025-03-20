@@ -98,6 +98,7 @@ class ImagePermutation:
                 jpeg_img = Image.open(temp_buffer)
                 # Ensure consistent format & size
                 return_dict["jpeg_compression"] = jpeg_img.convert("L").resize(self.resize)
+            return return_dict
 
 
         mode = self.mode
@@ -170,79 +171,100 @@ class ImagePermutation:
         return results  
         
 
-class ImageScanner():
+class ImageScanner:
     """
-    ImageScanner compares dataframe of hashes & bytes to existing database of hashes and bytes, returning
-    matching values via various functions.
+    ImageScanner compares a dataframe of hashes & bytes to an existing database of hashes and bytes,
+    returning matching values via various functions.
     """
 
-    def __init__(self, _database):
-        self.database = _database
-        self.matching_images = []
-        self.matching_images_dict = {}
-
-
-
-    def compare_hashes_fuzzy_crosswise(self, test_hashes, threshold = 5):
+    def __init__(self, _database: pd.DataFrame):
         """
-        Compares each hash from the test_hashes dictionary to the stored image database df.
+        Initializes ImageScanner with an existing image database (as a DataFrame).
+        """
+        self.database = _database  # stored image data as a DataFrame
+        self.matches_df = pd.DataFrame()  # DataFrame to store the match results
+
+    def batch_test_hashes_to_df(self, batch_test_hashes: list) -> pd.DataFrame:
+        """
+        Converts a list of hash dictionaries (each representing an image) into a pandas DataFrame.
 
         Args:
-            test_hashes -> dict.
-            df -> pd.DataFrame.
-            threshold -> int, distance threshold between hashes to flag a fuzzy match.
+            batch_test_hashes (list): List of dictionaries with image hash data.
 
         Returns:
-            matching_images -> list of matches, stores in self.matching_images
-            matching_images_dict -> dict of matches to turn into df, stores in self.matching_images_dict
+            pd.DataFrame: DataFrame constructed from the list.
         """
-        df = self.database
-        matching_images = []
-        matching_images_dict = {'file': [], 'match_type': [], 'match_level': []}
-        test_filename = test_hashes.get("filename", "Test Image")
+        return pd.DataFrame(batch_test_hashes)
 
-        # For each row (stored image) in the DataFrame
-        for idx, row in df.iterrows():
-            existing_filename = row["filename"]
-            row_matches = []
+    def compare_hashes_fuzzy_crosswise_df(self, test_df: pd.DataFrame, threshold: int = 5) -> pd.DataFrame:
+        """
+        Compares two DataFrames in a crosswise manner: one for test images and one from the database.
+        For each test image, every hash (column ending with '_hash') is compared with every hash in the database.
+        Matches are recorded if the Hamming distance is 0 (Exact) or within the specified threshold (Fuzzy).
 
-            # Compare every hash in test_hashes to every hash in row
-            for test_key, test_val in test_hashes.items():
-                if test_key.endswith("_hash"):
-                    test_hash = imagehash.hex_to_hash(test_val)
+        Args:
+            test_df (pd.DataFrame): DataFrame containing test image hash dictionaries.
+            threshold (int): Maximum Hamming distance to consider a fuzzy match.
 
-                    # Loop over every stored hash in the current row
-                    for store_key, store_val in row.items():
-                        if store_key.endswith("_hash"):
-                            stored_hash = imagehash.hex_to_hash(store_val)
-                            distance = test_hash - stored_hash  # Hamming distance
-                            if distance == 0:
-                                row_matches.append(f"{test_key} vs {store_key} (Exact)")
-                                matching_images_dict['file'].append(existing_filename)
-                                matching_images_dict['match_type'].append(f"{test_key} vs {store_key}")
-                                matching_images_dict['match_level'].append('Exact')
-                            elif distance <= threshold:
-                                row_matches.append(
-                                    f"{test_key} vs {store_key} (Fuzzy, Distance={distance})"
-                                )
-                                matching_images_dict['file'].append(existing_filename)
-                                matching_images_dict['match_type'].append(f"{test_key} vs {store_key}")
-                                matching_images_dict['match_level'].append(f'Fuzzy, Distance={distance}')
+        Returns:
+            pd.DataFrame: A DataFrame containing match details with columns for test image, database image,
+                          the hash keys compared, the type of match, and the computed distance.
+        """
+        # Identify the columns that contain hash values in each DataFrame.
+        test_hash_cols = [col for col in test_df.columns if col.endswith('_hash')]
+        db_hash_cols = [col for col in self.database.columns if col.endswith('_hash')]
 
-            if row_matches:
-                matching_images.append((existing_filename, row_matches))
+        records = []  # List to store match record dictionaries.
 
-        self.matching_images = matching_images
-        self.matching_images_dict = matching_images_dict
+        # Iterate over each test image (row) in the test DataFrame.
+        for _, test_row in test_df.iterrows():
+            test_filename = test_row.get('filename', 'Unknown')
+            for test_col in test_hash_cols:
+                test_hash_str = test_row[test_col]
+                try:
+                    test_hash_obj = imagehash.hex_to_hash(test_hash_str)
+                except Exception:
+                    continue  # Skip if conversion fails.
+                # For each stored image in the database.
+                for _, db_row in self.database.iterrows():
+                    db_filename = db_row.get('filename', 'Unknown')
+                    for db_col in db_hash_cols:
+                        db_hash_str = db_row[db_col]
+                        try:
+                            db_hash_obj = imagehash.hex_to_hash(db_hash_str)
+                        except Exception:
+                            continue  # Skip if conversion fails.
+                        distance = test_hash_obj - db_hash_obj  # Compute Hamming distance.
+                        if distance == 0:
+                            records.append({
+                                'test_filename': test_filename,
+                                'db_filename': db_filename,
+                                'test_hash_key': test_col,
+                                'db_hash_key': db_col,
+                                'match_level': 'Exact',
+                                'distance': distance
+                            })
+                        elif distance <= threshold:
+                            records.append({
+                                'test_filename': test_filename,
+                                'db_filename': db_filename,
+                                'test_hash_key': test_col,
+                                'db_hash_key': db_col,
+                                'match_level': f'Fuzzy, Distance={distance}',
+                                'distance': distance
+                            })
 
-    def print_matches(self):
-        match_list = self.matching_images
-        if len(match_list) > 0:
-            for match in match_list:
-                filename, transformations = match
-                print("--------------------")
-                print(f"Match found with '{filename}': {', '.join(transformations)}")
-                print("--------------------")
+        # Convert the records list into a DataFrame.
+        matches_df = pd.DataFrame(records)
+        self.matches_df = matches_df
+        return matches_df
+
+    def print_matches_df(self):
+        """
+        Prints the matches DataFrame in a readable format.
+        """
+        if not self.matches_df.empty:
+            print(self.matches_df)
         else:
-            print("Brand new image")
+            print("No matches found.")
 
