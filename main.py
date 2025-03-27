@@ -19,11 +19,11 @@ def main():
     isc.print_matches_df()
 
     # Test loading and displaying image from stored bytes
-    example_row = image_db_df.iloc[0]
-    image_bytes = example_row['original_bytes']
-    restored_image = isc.bytes_to_image(image_bytes)
-    restored_image.show()
-    restored_image.save("restored_image_test.jpg")
+    # example_row = image_db_df.iloc[0]
+    # image_bytes = example_row['original_bytes']
+    # restored_image = isc.bytes_to_image(image_bytes)
+    # restored_image.show()
+    # restored_image.save("restored_image_test.jpg")
 
 if __name__ == "__main__":
     main()

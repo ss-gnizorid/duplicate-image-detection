@@ -239,6 +239,8 @@ class ImageScanner:
                         except Exception:
                             continue  # Skip if conversion fails.
                         distance = test_hash_obj - db_hash_obj  # Compute Hamming distance.
+                        normalized_distance = distance / len(test_hash_obj.hash) ** 2
+                        similarity_score = 1 - normalized_distance
                         if distance == 0:
                             records.append({
                                 'test_filename': test_filename,
@@ -246,7 +248,8 @@ class ImageScanner:
                                 'test_hash_key': test_col,
                                 'db_hash_key': db_col,
                                 'match_level': 'Exact',
-                                'distance': distance
+                                'distance': distance,
+                                'similarity': 1 - (distance / len(test_hash_obj.hash) ** 2)
                             })
                         elif distance <= threshold:
                             records.append({
@@ -255,7 +258,8 @@ class ImageScanner:
                                 'test_hash_key': test_col,
                                 'db_hash_key': db_col,
                                 'match_level': f'Fuzzy, Distance={distance}',
-                                'distance': distance
+                                'distance': distance,
+                                'similarity': 1 - (distance / len(test_hash_obj.hash) ** 2)
                             })
 
         # Convert the records list into a DataFrame.
