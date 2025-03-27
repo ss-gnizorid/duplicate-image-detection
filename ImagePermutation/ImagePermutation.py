@@ -184,6 +184,10 @@ class ImageScanner:
         self.database = _database  # stored image data as a DataFrame
         self.matches_df = pd.DataFrame()  # DataFrame to store the match results
 
+    @staticmethod
+    def bytes_to_image(image_bytes):
+        return Image.open(io.BytesIO(image_bytes))
+
     def batch_test_hashes_to_df(self, batch_test_hashes: list) -> pd.DataFrame:
         """
         Converts a list of hash dictionaries (each representing an image) into a pandas DataFrame.
